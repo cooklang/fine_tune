@@ -1,0 +1,987 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cooklang Recipe Validator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            background: #f5f5f5;
+        }
+        
+        header {
+            background: #2c3e50;
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .recipe-name {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .navigation {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .nav-button {
+            background: #34495e;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+        
+        .nav-button:hover:not(:disabled) {
+            background: #445566;
+        }
+        
+        .nav-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .remove-button {
+            background: #c0392b;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.9rem;
+            transition: background 0.2s;
+        }
+
+        .remove-button:hover {
+            background: #e74c3c;
+        }
+        
+        .recipe-counter {
+            color: #ecf0f1;
+            font-size: 0.9rem;
+        }
+        
+        .status-indicators {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        
+        .status {
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .status.saved {
+            background: #27ae60;
+        }
+        
+        .status.unsaved {
+            background: #e74c3c;
+        }
+        
+        .status.saving {
+            background: #f39c12;
+        }
+        
+        .status.valid {
+            background: #27ae60;
+        }
+        
+        .status.invalid {
+            background: #e74c3c;
+        }
+
+        .status.warning {
+            background: #f39c12;
+        }
+
+        .status-container {
+            position: relative;
+        }
+
+        .status-tooltip {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 0.5rem;
+            background: #2c3e50;
+            color: white;
+            padding: 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            white-space: pre-wrap;
+            max-width: 400px;
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .status-container:hover .status-tooltip {
+            display: block;
+        }
+
+        .status-tooltip:empty {
+            display: none;
+        }
+        
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            background: white;
+            margin: 0.5rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: #ecf0f1;
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            color: #2c3e50;
+            border-bottom: 1px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 48px;
+        }
+        
+        .diff-toggle {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.75rem;
+            cursor: pointer;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: normal;
+            transition: background 0.2s;
+        }
+        
+        .diff-toggle:hover {
+            background: #2980b9;
+        }
+        
+        .diff-toggle.active {
+            background: #e74c3c;
+        }
+        
+        .diff-line {
+            padding: 0 2px;
+            margin: 0 -2px;
+        }
+        
+        .diff-added {
+            background-color: #d4f4dd;
+            color: #22863a;
+        }
+        
+        .diff-removed {
+            background-color: #ffeef0;
+            color: #b31d28;
+            text-decoration: line-through;
+        }
+        
+        .diff-word-added {
+            background-color: #acf2bd;
+            font-weight: bold;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        
+        .diff-word-removed {
+            background-color: #fdb8c0;
+            font-weight: bold;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        
+        .panel-content {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+        
+        .markdown-editor {
+            width: 100%;
+            height: 100%;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9rem;
+            border: none;
+            outline: none;
+            resize: none;
+            line-height: 1.6;
+            white-space: pre-wrap;
+        }
+        
+        .cooklang-editor {
+            width: 100%;
+            height: 100%;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9rem;
+            border: none;
+            outline: none;
+            resize: none;
+            line-height: 1.6;
+        }
+
+        /* CodeMirror editor styles */
+        .cm-editor {
+            height: 100%;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9rem;
+        }
+
+        .cm-editor .cm-content {
+            line-height: 1.6;
+        }
+
+        .cm-editor .cm-scroller {
+            overflow: auto;
+        }
+
+        .cm-editor.cm-focused {
+            outline: none;
+        }
+
+        /* Cooklang syntax highlighting colors */
+        .tok-variableName { color: #0b76b8; }  /* Ingredients (@) - Blue */
+        .tok-keyword { color: #33a058; }        /* Cookware (#) - Green */
+        .tok-number { color: #d33682; }         /* Timers (~) - Magenta */
+        .tok-comment { color: #93a1a1; }        /* Comments */
+        .tok-meta { color: #6c71c4; }           /* Metadata/Frontmatter */
+        .tok-unit { color: #cb4b16; }           /* Units */
+        .tok-string { color: #2aa198; }         /* Measurements */
+        
+        .markdown-output {
+            line-height: 1.6;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            font-size: 0.9rem;
+            white-space: pre-wrap;
+            margin: 0;
+            padding: 0;
+        }
+        
+        
+        .loading {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            color: #7f8c8d;
+        }
+        
+        .shortcuts-help {
+            position: fixed;
+            bottom: 1rem;
+            right: 1rem;
+            background: rgba(44, 62, 80, 0.9);
+            color: white;
+            padding: 0.5rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        
+        .shortcuts-help:hover {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="recipe-name" id="recipeName">Loading...</div>
+        <div class="navigation">
+            <button class="remove-button" onclick="removeRecipe()">Remove</button>
+            <button class="nav-button" id="prevBtn" onclick="navigateRecipe(-1)">← Previous (⌘[)</button>
+            <span class="recipe-counter" id="recipeCounter">0 / 0</span>
+            <button class="nav-button" id="nextBtn" onclick="navigateRecipe(1)">Next (⌘]) →</button>
+        </div>
+        <div class="status-indicators">
+            <span class="status saved" id="saveStatus">Saved</span>
+            <div class="status-container">
+                <span class="status valid" id="parseStatus">✓</span>
+                <div class="status-tooltip" id="parseTooltip"></div>
+            </div>
+        </div>
+    </header>
+    
+    <div class="main-container">
+        <div class="panel">
+            <div class="panel-header">
+                <span>Original Recipe (.recipe)</span>
+                <span style="width: 85px;"></span>
+            </div>
+            <div class="panel-content">
+                <textarea class="markdown-editor" id="markdownEditor" placeholder="Loading..."></textarea>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span>Cooklang Rendered</span>
+                <button class="diff-toggle" id="diffToggle" onclick="toggleDiffMode()">Show Diff</button>
+            </div>
+            <div class="panel-content">
+                <pre class="markdown-output" id="markdownOutput">
+                    <div class="loading">Loading...</div>
+                </pre>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span>Cooklang Source</span>
+                <span style="width: 85px;"></span>
+            </div>
+            <div class="panel-content">
+                <div id="cooklangEditor"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="shortcuts-help">
+        ⌘S: Save | ⌘[: Previous | ⌘]: Next | ⌘⌫: Remove
+    </div>
+    
+    <script type="module">
+        // Use skypack which properly resolves CodeMirror dependencies
+        import {EditorView, keymap, lineNumbers, highlightActiveLine} from "https://cdn.skypack.dev/@codemirror/view@6.23.1";
+        import {EditorState} from "https://cdn.skypack.dev/@codemirror/state@6.4.0";
+        import {StreamLanguage, syntaxHighlighting, HighlightStyle} from "https://cdn.skypack.dev/@codemirror/language@6.10.1";
+        import {defaultKeymap} from "https://cdn.skypack.dev/@codemirror/commands@6.3.3";
+        import {tags as t} from "https://cdn.skypack.dev/@lezer/highlight@1.2.1";
+
+        // Define the Cooklang language (ported from cooklang-obsidian)
+        const cooklang = StreamLanguage.define({
+            name: "cooklang",
+            startState() {
+                return {
+                    formatting: false,
+                    nextMultiline: false,
+                    inMultiline: false,
+                    afterSection: false,
+                    position: null,
+                    inFrontmatter: false,
+                    inMetadata: false,
+                    inNote: false,
+                    inComment: false
+                };
+            },
+            token(stream, state) {
+                const sol = stream.sol() || state.afterSection;
+                const eol = stream.eol();
+                state.afterSection = false;
+
+                if (sol) {
+                    if (state.nextMultiline) {
+                        state.inMultiline = true;
+                        state.nextMultiline = false;
+                    } else {
+                        state.position = null;
+                    }
+                    // Reset line-scoped states
+                    state.inNote = false;
+                    state.inMetadata = false;
+                }
+
+                if (eol && !state.nextMultiline) {
+                    state.inMultiline = false;
+                    state.position = null;
+                }
+
+                if (sol) {
+                    while(stream.eatSpace()) {}
+                }
+
+                // Check for frontmatter delimiters
+                if (sol && stream.match(/^---\s*$/)) {
+                    state.inFrontmatter = !state.inFrontmatter;
+                    return "meta";
+                }
+
+                // If we're in frontmatter, highlight the entire line
+                if (state.inFrontmatter) {
+                    stream.skipToEnd();
+                    return "meta";
+                }
+
+                // Check for comments (-- comment)
+                if (sol && stream.match(/^--/)) {
+                    stream.skipToEnd();
+                    return "comment";
+                }
+
+                // Check for block comments ([- comment -])
+                if (stream.match(/^\[-/)) {
+                    state.inComment = true;
+                    return "comment";
+                }
+
+                if (state.inComment) {
+                    if (stream.match(/-]/)) {
+                        state.inComment = false;
+                        return "comment";
+                    }
+                    stream.skipToEnd();
+                    return "comment";
+                }
+
+                // Check for metadata (>> key: value)
+                if (sol && stream.match(/^>>/)) {
+                    state.inMetadata = true;
+                    state.position = "metadata-key";
+                    return "meta";
+                }
+
+                // Handle metadata key and value
+                if (state.inMetadata) {
+                    if (state.position === "metadata-key") {
+                        if (stream.match(/^[^:]+:/)) {
+                            state.position = "metadata-value";
+                            return "meta";
+                        }
+                        stream.skipToEnd();
+                        return "meta";
+                    } else if (state.position === "metadata-value") {
+                        stream.skipToEnd();
+                        return "meta";
+                    }
+                }
+
+                // Check for notes (lines starting with >)
+                if (sol && stream.match(/^>/)) {
+                    state.inNote = true;
+                    return "comment";
+                }
+
+                if (state.inNote) {
+                    stream.skipToEnd();
+                    return "comment";
+                }
+
+                // Handle ingredients (@ingredient{amount})
+                if (stream.match(/^@([^@#~]+?(?={))/)) {
+                    return "variableName";
+                } else if (stream.match(/^@(.+?\b)/)) {
+                    return "variableName";
+                }
+
+                // Handle cookware (#cookware{amount})
+                if (stream.match(/^#([^@#~]+?(?={))/)) {
+                    return "keyword";
+                } else if (stream.match(/^#(.+?\b)/)) {
+                    return "keyword";
+                }
+
+                // Handle timers (~timer{amount})
+                if (stream.match(/^~([^@#~]+?(?={))/)) {
+                    return "number";
+                } else if (stream.match(/^~(.+?\b)/)) {
+                    return "number";
+                }
+
+                // Handle amounts in curly braces
+                const ch = stream.next();
+                if (!ch) return null;
+
+                if (ch === '{') {
+                    if (state.position !== "timer") state.position = "measurement";
+                    return null;
+                }
+
+                if (ch === '}') {
+                    state.position = null;
+                    return null;
+                }
+
+                if (ch === '%' && (state.position === "measurement" || state.position === "timer")) {
+                    state.position = "unit";
+                    return null;
+                }
+
+                return state.position;
+            }
+        });
+
+        // Define syntax highlighting theme
+        const cooklangHighlightStyle = HighlightStyle.define([
+            {tag: t.variableName, color: "#0b76b8"},  // Ingredients (@) - Blue
+            {tag: t.keyword, color: "#33a058"},       // Cookware (#) - Green
+            {tag: t.number, color: "#d33682"},        // Timers (~) - Magenta
+            {tag: t.comment, color: "#93a1a1"},       // Comments
+            {tag: t.meta, color: "#6c71c4"},          // Metadata/Frontmatter
+        ]);
+
+        let recipes = [];
+        let currentRecipeIndex = 0;
+        let saveTimeout = null;
+        let saveMarkdownTimeout = null;
+        let parseTimeout = null;
+        let isDirty = false;
+        let isMarkdownDirty = false;
+        let diffMode = false;
+        let originalMarkdown = '';
+        let renderedMarkdown = '';
+        let cooklangEditorView = null;
+        
+        // Initialize CodeMirror editor
+        function initCooklangEditor() {
+            const updateListener = EditorView.updateListener.of((update) => {
+                if (update.docChanged) {
+                    isDirty = true;
+                    updateSaveStatus('unsaved');
+
+                    clearTimeout(saveTimeout);
+                    saveTimeout = setTimeout(saveRecipe, 2000);
+
+                    clearTimeout(parseTimeout);
+                    parseTimeout = setTimeout(parseContent, 500);
+                }
+            });
+
+            cooklangEditorView = new EditorView({
+                state: EditorState.create({
+                    doc: '',
+                    extensions: [
+                        lineNumbers(),
+                        highlightActiveLine(),
+                        cooklang,
+                        syntaxHighlighting(cooklangHighlightStyle),
+                        EditorView.lineWrapping,
+                        keymap.of(defaultKeymap),
+                        updateListener
+                    ]
+                }),
+                parent: document.getElementById('cooklangEditor')
+            });
+        }
+
+        // Helper to get/set CodeMirror content
+        function getCooklangContent() {
+            return cooklangEditorView.state.doc.toString();
+        }
+
+        function setCooklangContent(content) {
+            cooklangEditorView.dispatch({
+                changes: {
+                    from: 0,
+                    to: cooklangEditorView.state.doc.length,
+                    insert: content
+                }
+            });
+        }
+
+        async function loadRecipes() {
+            try {
+                // Initialize CodeMirror editor first
+                initCooklangEditor();
+
+                const response = await fetch('/api/recipes');
+                recipes = await response.json();
+
+                // Check URL for recipe number
+                const urlParams = new URLSearchParams(window.location.search);
+                const recipeNum = urlParams.get('recipe');
+                let initialIndex = 0;
+
+                if (recipeNum && !isNaN(recipeNum)) {
+                    const index = parseInt(recipeNum) - 1; // Convert to 0-based index
+                    if (index >= 0 && index < recipes.length) {
+                        initialIndex = index;
+                    }
+                }
+
+                if (recipes.length > 0) {
+                    loadRecipe(initialIndex);
+                }
+            } catch (error) {
+                console.error('Failed to load recipes:', error);
+            }
+        }
+        
+        async function loadRecipe(index) {
+            if (index < 0 || index >= recipes.length) return;
+            
+            currentRecipeIndex = index;
+            updateNavigationButtons();
+            updateURL(index);
+            
+            try {
+                const response = await fetch(`/api/recipe/${index}`);
+                const recipe = await response.json();
+                
+                document.getElementById('recipeName').textContent = recipe.name;
+                document.getElementById('recipeCounter').textContent = `${index + 1} / ${recipes.length}`;
+                document.getElementById('markdownEditor').value = recipe.markdown_content;
+                setCooklangContent(recipe.cooklang_content);
+                
+                originalMarkdown = recipe.markdown_content;
+                renderedMarkdown = recipe.plain_output;
+
+                if (diffMode) {
+                    showDiff();
+                } else {
+                    document.getElementById('markdownOutput').textContent = recipe.plain_output;
+                }
+                
+                updateParseStatus(recipe.parsed_result.errors);
+                isDirty = false;
+                isMarkdownDirty = false;
+                updateSaveStatus('saved');
+                
+            } catch (error) {
+                console.error('Failed to load recipe:', error);
+            }
+        }
+        
+        function updateURL(index) {
+            const url = new URL(window.location);
+            url.searchParams.set('recipe', index + 1); // Display 1-based index in URL
+            window.history.pushState({}, '', url);
+        }
+        
+        
+        async function saveRecipe() {
+            if (!isDirty) return;
+
+            updateSaveStatus('saving');
+
+            try {
+                const content = getCooklangContent();
+                const response = await fetch(`/api/recipe/${currentRecipeIndex}/cook`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                
+                if (response.ok) {
+                    isDirty = false;
+                    if (!isMarkdownDirty) {
+                        updateSaveStatus('saved');
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to save recipe:', error);
+                updateSaveStatus('unsaved');
+            }
+        }
+        
+        async function saveMarkdown() {
+            if (!isMarkdownDirty) return;
+            
+            updateSaveStatus('saving');
+            
+            try {
+                const content = document.getElementById('markdownEditor').value;
+                const response = await fetch(`/api/recipe/${currentRecipeIndex}/markdown`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                
+                if (response.ok) {
+                    isMarkdownDirty = false;
+                    originalMarkdown = content;
+                    if (!isDirty) {
+                        updateSaveStatus('saved');
+                    }
+                    // Update diff if in diff mode
+                    if (diffMode) {
+                        showDiff();
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to save markdown:', error);
+                updateSaveStatus('unsaved');
+            }
+        }
+        
+        async function parseContent() {
+            const content = getCooklangContent();
+            
+            try {
+                const response = await fetch('/api/parse', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content })
+                });
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    renderedMarkdown = result.plain;
+
+                    if (diffMode) {
+                        showDiff();
+                    } else {
+                        document.getElementById('markdownOutput').textContent = result.plain;
+                    }
+
+                    updateParseStatus(result.parsed.errors);
+                }
+            } catch (error) {
+                console.error('Failed to parse content:', error);
+            }
+        }
+        
+        function updateSaveStatus(status) {
+            const element = document.getElementById('saveStatus');
+            element.className = `status ${status}`;
+            element.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+        }
+        
+        function updateParseStatus(errors) {
+            const element = document.getElementById('parseStatus');
+            const tooltip = document.getElementById('parseTooltip');
+
+            if (!errors || errors.length === 0) {
+                // No issues
+                element.className = 'status valid';
+                element.textContent = '✓';
+                tooltip.textContent = '';
+            } else {
+                // Check if all are warnings or if there are actual errors
+                const hasErrors = errors.some(e => e.startsWith('Parse error:'));
+
+                if (hasErrors) {
+                    element.className = 'status invalid';
+                    element.textContent = '❌';
+                } else {
+                    element.className = 'status warning';
+                    element.textContent = '⚠️';
+                }
+
+                tooltip.textContent = errors.join('\n');
+            }
+        }
+        
+        function updateNavigationButtons() {
+            document.getElementById('prevBtn').disabled = currentRecipeIndex === 0;
+            document.getElementById('nextBtn').disabled = currentRecipeIndex === recipes.length - 1;
+        }
+        
+        async function navigateRecipe(direction) {
+            const newIndex = currentRecipeIndex + direction;
+            if (newIndex >= 0 && newIndex < recipes.length) {
+                const promises = [];
+                if (isDirty) {
+                    promises.push(saveRecipe());
+                }
+                if (isMarkdownDirty) {
+                    promises.push(saveMarkdown());
+                }
+
+                if (promises.length > 0) {
+                    await Promise.all(promises);
+                }
+                loadRecipe(newIndex);
+            }
+        }
+
+        async function removeRecipe() {
+            try {
+                const response = await fetch(`/api/recipe/${currentRecipeIndex}`, {
+                    method: 'DELETE'
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    // Remove the recipe from local array
+                    recipes.splice(currentRecipeIndex, 1);
+
+                    if (recipes.length === 0) {
+                        document.getElementById('recipeName').textContent = 'No recipes remaining';
+                        document.getElementById('recipeCounter').textContent = '0 / 0';
+                        document.getElementById('markdownEditor').value = '';
+                        setCooklangContent('');
+                        document.getElementById('markdownOutput').textContent = '';
+                        return;
+                    }
+
+                    // Load the next recipe (same index, or previous if we were at the end)
+                    const nextIndex = Math.min(currentRecipeIndex, recipes.length - 1);
+                    loadRecipe(nextIndex);
+                } else {
+                    console.error('Failed to delete recipe');
+                }
+            } catch (error) {
+                console.error('Failed to delete recipe:', error);
+            }
+        }
+        
+        // Note: cooklangEditor input events are handled by CodeMirror's updateListener
+
+        document.getElementById('markdownEditor').addEventListener('input', (e) => {
+            isMarkdownDirty = true;
+            updateSaveStatus('unsaved');
+            
+            clearTimeout(saveMarkdownTimeout);
+            saveMarkdownTimeout = setTimeout(saveMarkdown, 2000);
+            
+            // Update diff if in diff mode
+            if (diffMode) {
+                originalMarkdown = e.target.value;
+                showDiff();
+            }
+        });
+        
+        document.addEventListener('keydown', (e) => {
+            if (e.metaKey || e.ctrlKey) {
+                switch(e.key) {
+                    case 's':
+                        e.preventDefault();
+                        Promise.all([
+                            isDirty ? saveRecipe() : Promise.resolve(),
+                            isMarkdownDirty ? saveMarkdown() : Promise.resolve()
+                        ]);
+                        break;
+                    case '[':
+                        e.preventDefault();
+                        navigateRecipe(-1);
+                        break;
+                    case ']':
+                        e.preventDefault();
+                        navigateRecipe(1);
+                        break;
+                    case 'Backspace':
+                        e.preventDefault();
+                        removeRecipe();
+                        break;
+                }
+            }
+        });
+        
+        window.addEventListener('beforeunload', (e) => {
+            if (isDirty || isMarkdownDirty) {
+                e.preventDefault();
+                e.returnValue = '';
+            }
+        });
+        
+        function toggleDiffMode() {
+            diffMode = !diffMode;
+            const button = document.getElementById('diffToggle');
+            
+            if (diffMode) {
+                button.textContent = 'Hide Diff';
+                button.classList.add('active');
+                showDiff();
+            } else {
+                button.textContent = 'Show Diff';
+                button.classList.remove('active');
+                document.getElementById('markdownOutput').textContent = renderedMarkdown;
+            }
+        }
+        
+        function showDiff() {
+            const output = document.getElementById('markdownOutput');
+            const diffHtml = computeLineDiff(originalMarkdown, renderedMarkdown);
+            output.innerHTML = diffHtml;
+        }
+        
+        function computeLineDiff(text1, text2) {
+            const lines1 = text1.split('\n');
+            const lines2 = text2.split('\n');
+            const maxLength = Math.max(lines1.length, lines2.length);
+            let result = [];
+            
+            for (let i = 0; i < maxLength; i++) {
+                const line1 = lines1[i] || '';
+                const line2 = lines2[i] || '';
+                
+                if (line1 === line2) {
+                    // Same line
+                    result.push(escapeHtml(line2));
+                } else if (i >= lines1.length) {
+                    // Added line
+                    result.push(`<span class="diff-line diff-added">+ ${escapeHtml(line2)}</span>`);
+                } else if (i >= lines2.length) {
+                    // Removed line
+                    result.push(`<span class="diff-line diff-removed">- ${escapeHtml(line1)}</span>`);
+                } else {
+                    // Changed line - compute word diff
+                    const removedWithHighlight = computeWordDiff(line1, line2, 'removed');
+                    const addedWithHighlight = computeWordDiff(line2, line1, 'added');
+                    result.push(`<span class="diff-line diff-removed">- ${removedWithHighlight}</span>`);
+                    result.push(`<span class="diff-line diff-added">+ ${addedWithHighlight}</span>`);
+                }
+            }
+            
+            return result.join('\n');
+        }
+        
+        function computeWordDiff(line1, line2, type) {
+            // For the context line (the other line in the pair)
+            const contextLine = type === 'removed' ? line2 : line1;
+            const words1 = line1.split(/(\s+)/);
+            const words2 = contextLine.split(/(\s+)/);
+            
+            // Build a set of words in the context line for quick lookup
+            const contextWords = new Set(words2.filter(w => w.trim()));
+            
+            let result = [];
+            for (let word of words1) {
+                if (word.trim() === '') {
+                    // Preserve whitespace
+                    result.push(escapeHtml(word));
+                } else if (contextWords.has(word)) {
+                    // Word exists in both lines
+                    result.push(escapeHtml(word));
+                } else {
+                    // Word is different
+                    const className = type === 'removed' ? 'diff-word-removed' : 'diff-word-added';
+                    result.push(`<span class="${className}">${escapeHtml(word)}</span>`);
+                }
+            }
+            
+            return result.join('');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        // Expose functions to global scope for onclick handlers
+        window.removeRecipe = removeRecipe;
+        window.navigateRecipe = navigateRecipe;
+        window.toggleDiffMode = toggleDiffMode;
+
+        loadRecipes();
+    </script>
+</body>
+</html>
