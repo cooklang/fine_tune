@@ -2,6 +2,8 @@
 
 A web-based tool for reviewing and correcting `.recipe` → `.cook` conversions side-by-side. Built with Rust (Actix-Web) and the official Cooklang parser.
 
+![Screenshot](static/screenshot.png)
+
 ## Features
 
 - Three-panel layout: original `.recipe` source, rendered Cooklang output, and Cooklang source editor

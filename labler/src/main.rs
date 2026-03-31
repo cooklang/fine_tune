@@ -62,6 +62,15 @@ struct ParseRequest {
     content: String,
 }
 
+fn strip_frontmatter(content: &str) -> String {
+    if content.starts_with("---") {
+        if let Some(end) = content[3..].find("\n---") {
+            return content[3 + end + 4..].trim_start_matches('\n').to_string();
+        }
+    }
+    content.to_string()
+}
+
 struct AppState {
     recipes: Vec<RecipePair>,
     recipe_root: PathBuf,
@@ -85,6 +94,7 @@ async fn get_recipe(
     
     let markdown_content = fs::read_to_string(&recipe.markdown_path)
         .unwrap_or_else(|_| String::from("Error reading markdown file"));
+    let markdown_content = strip_frontmatter(&markdown_content);
     
     let cooklang_content = fs::read_to_string(&recipe.cooklang_path)
         .unwrap_or_else(|_| String::from("Error reading cooklang file"));
