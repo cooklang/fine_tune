@@ -60,6 +60,8 @@ Requires `OPENAI_API_KEY` env var. Optionally set `OPENAI_MODEL` to override the
 
 Web UI for reviewing and correcting `.recipe` → `.cook` conversions side-by-side. Three-panel layout with syntax-highlighted Cooklang editor, real-time parsing, and diff view.
 
+![Labler screenshot](labler/static/screenshot.png)
+
 ```sh
 cd labler
 cargo run                      # All recipes (defaults to ../recipes)
