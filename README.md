@@ -9,6 +9,7 @@ The dataset is built from [HelloFresh](https://www.hellofresh.com) recipe pages 
 ```
 recipes/           Converted recipe pairs (.recipe → .cook) used as training data
 inbox/             Raw scraped recipes not yet converted
+labler/            Web UI for reviewing and correcting .recipe → .cook conversions
 src/main.rs        HelloFresh scraper (Rust)
 batch_convert.py   Batch conversion script using OpenAI Batch API
 ```
@@ -54,6 +55,18 @@ python batch_convert.py collect   # Download results when complete
 ```
 
 Requires `OPENAI_API_KEY` env var. Optionally set `OPENAI_MODEL` to override the default model.
+
+### Labler (Rust)
+
+Web UI for reviewing and correcting `.recipe` → `.cook` conversions side-by-side. Three-panel layout with syntax-highlighted Cooklang editor, real-time parsing, and diff view.
+
+```sh
+cd labler
+cargo run                      # All recipes (defaults to ../recipes)
+cargo run -- ../recipes/us     # Only US recipes
+```
+
+See [labler/README.md](labler/README.md) for details.
 
 ## Recipe Format
 
