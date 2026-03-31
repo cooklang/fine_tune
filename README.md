@@ -70,6 +70,48 @@ cargo run -- ../recipes/us     # Only US recipes
 
 See [labler/README.md](labler/README.md) for details.
 
+## Validation Workflow
+
+Multiple people can collaborate on reviewing recipes by splitting country folders between them.
+
+### Setup
+
+Each reviewer picks a country folder to work on:
+
+```sh
+cd labler
+cargo run -- ../recipes/us     # Reviewer A
+cargo run -- ../recipes/gb     # Reviewer B
+```
+
+### Review Process
+
+1. Open a recipe and compare the original `.recipe` (left panel) with the Cooklang source (right panel)
+2. Fix any conversion issues in the Cooklang editor — the middle panel shows a live preview
+3. Use "Show Diff" to spot differences between the original and the rendered output
+4. Once the recipe looks correct, add `fine_tune_status: reviewed` to the YAML frontmatter in the `.cook` file:
+
+```cooklang
+---
+fine_tune_status: reviewed
+---
+
+Preheat oven to 425 degrees. Dice @potatoes{12%oz}...
+```
+
+5. Save (`⌘S`) and move to the next recipe (`⌘]`)
+
+### Status Tracking
+
+The `fine_tune_status` frontmatter field in `.cook` files tracks review progress:
+
+| Value | Meaning |
+|-------|---------|
+| *(missing)* | Not yet reviewed |
+| `reviewed` | Human-verified and corrected |
+
+This lets the team see at a glance which recipes are done and which still need attention.
+
 ## Recipe Format
 
 ### Input (`.recipe`)
